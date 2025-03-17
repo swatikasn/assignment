@@ -5,6 +5,8 @@ import { Request, Response } from 'express';
 const router = Router();
 const prisma = new PrismaClient();
 
+const taskCache: Map<string, any[]> = new Map();
+
 router.post('/', async (req: Request, res: Response): Promise<any> => {
   try {
     const { title, description, priority } = req.body;
@@ -35,6 +37,10 @@ router.get('/', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = req.user?.userId;
     const { page = 1, limit = 10, priority, status } = req.query;
+    const cacheKey = JSON.stringify({ userId, page, limit, priority, status });
+    if (taskCache.has(cacheKey)) {
+      return res.json(taskCache.get(cacheKey));
+    }
     const whereClause: any = {
       userId: userId!
     };
@@ -55,6 +61,8 @@ router.get('/', async (req: Request, res: Response): Promise<any> => {
       take: Number(limit)
     });
 
+    taskCache.set(cacheKey, tasks);
+
     res.json(tasks);
   } catch (error) {
     console.error(error);
@@ -66,7 +74,6 @@ router.get('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
-
     const task = await prisma.task.findFirst({
       where: {
         id,

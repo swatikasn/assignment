@@ -13,6 +13,7 @@ const express_1 = require("express");
 const client_1 = require("@prisma/client");
 const router = (0, express_1.Router)();
 const prisma = new client_1.PrismaClient();
+const taskCache = new Map();
 router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -41,14 +42,29 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        const { page = 1, limit = 10, priority, status } = req.query;
+        const cacheKey = JSON.stringify({ userId, page, limit, priority, status });
+        if (taskCache.has(cacheKey)) {
+            return res.json(taskCache.get(cacheKey));
+        }
+        const whereClause = {
+            userId: userId
+        };
+        if (priority) {
+            whereClause.priority = priority;
+        }
+        if (status) {
+            whereClause.status = status;
+        }
         const tasks = yield prisma.task.findMany({
-            where: {
-                userId: userId
-            },
+            where: whereClause,
             orderBy: {
                 createdAt: 'desc'
-            }
+            },
+            skip: (Number(page) - 1) * Number(limit),
+            take: Number(limit)
         });
+        taskCache.set(cacheKey, tasks);
         res.json(tasks);
     }
     catch (error) {
