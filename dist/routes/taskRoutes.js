@@ -18,6 +18,9 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { title, description, priority } = req.body;
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not found' });
+        }
         const task = yield prisma.task.create({
             data: {
                 title,
@@ -27,7 +30,7 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 userId: userId
             }
         });
-        res.status(201).json(task);
+        res.status(201).json({ message: 'Task created successfully', task });
     }
     catch (error) {
         console.error(error);

@@ -15,6 +15,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRoutes);
+//@ts-ignore
 app.use("/tasks", authenticateToken, taskRoutes);
 
 app.listen(process.env.PORT, () => {

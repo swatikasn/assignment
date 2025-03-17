@@ -10,6 +10,10 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
     const { title, description, priority } = req.body;
     const userId = req.user?.userId;
 
+    if (!userId) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
     const task = await prisma.task.create({
       data: {
         title,
@@ -20,7 +24,7 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
       }
     });
 
-    res.status(201).json(task);
+    res.status(201).json({ message: 'Task created successfully', task });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error creating task' });
@@ -30,13 +34,25 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
 router.get('/', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = req.user?.userId;
+    const { page = 1, limit = 10, priority, status } = req.query;
+    const whereClause: any = {
+      userId: userId!
+    };
+
+    if (priority) {
+      whereClause.priority = priority;
+    }
+    if (status) {
+      whereClause.status = status;
+    }
+
     const tasks = await prisma.task.findMany({
-      where: {
-        userId: userId!
-      },
+      where: whereClause,
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit)
     });
 
     res.json(tasks);
