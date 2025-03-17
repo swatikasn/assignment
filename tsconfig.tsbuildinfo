@@ -1,1 +1,1 @@
-{"root":["./src/global.d.ts","./src/index.ts","./src/middleware/auth.ts","./src/routes/authroutes.ts","./src/routes/taskroutes.ts"],"version":"5.8.2"}
+{"root":["./src/global.d.ts","./src/index.ts","./src/middleware/auth.ts","./src/routes/authroutes.ts","./src/routes/taskroutes.ts","./src/utils/taskqueue.ts"],"version":"5.8.2"}

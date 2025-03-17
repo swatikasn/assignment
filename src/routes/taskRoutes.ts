@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { PrismaClient, Priority, Status } from '@prisma/client';
 import { Request, Response } from 'express';
+import { TaskQueue } from '../utils/TaskQueue';
 
 const router = Router();
 const prisma = new PrismaClient();
-
+const taskQueue = new TaskQueue();
 const taskCache: Map<string, any[]> = new Map();
 
 router.post('/', async (req: Request, res: Response): Promise<any> => {
@@ -26,6 +27,16 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
       }
     });
 
+    taskQueue.enqueue({
+      id: task.id,
+      priority: task.priority,
+      createdAt: task.createdAt,
+      title: task.title,
+      description: task.description
+    });
+
+    taskCache.clear();
+
     res.status(201).json({ message: 'Task created successfully', task });
   } catch (error) {
     console.error(error);
@@ -38,9 +49,11 @@ router.get('/', async (req: Request, res: Response): Promise<any> => {
     const userId = req.user?.userId;
     const { page = 1, limit = 10, priority, status } = req.query;
     const cacheKey = JSON.stringify({ userId, page, limit, priority, status });
+
     if (taskCache.has(cacheKey)) {
       return res.json(taskCache.get(cacheKey));
     }
+
     const whereClause: any = {
       userId: userId!
     };
@@ -61,9 +74,26 @@ router.get('/', async (req: Request, res: Response): Promise<any> => {
       take: Number(limit)
     });
 
-    taskCache.set(cacheKey, tasks);
+    const tempQueue = new TaskQueue();
+    tasks.forEach(task => {
+      tempQueue.enqueue({
+        id: task.id,
+        priority: task.priority,
+        createdAt: task.createdAt,
+        title: task.title,
+        description: task.description
+      });
+    });
 
-    res.json(tasks);
+    const sortedTasks = tempQueue.getAll();
+    
+    taskCache.set(cacheKey, sortedTasks);
+
+    setTimeout(() => {
+      taskCache.delete(cacheKey);
+    }, 5 * 60 * 1000);
+
+    res.json(sortedTasks);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error fetching tasks' });

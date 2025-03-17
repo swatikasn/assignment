@@ -11,8 +11,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const client_1 = require("@prisma/client");
+const TaskQueue_1 = require("../utils/TaskQueue");
 const router = (0, express_1.Router)();
 const prisma = new client_1.PrismaClient();
+const taskQueue = new TaskQueue_1.TaskQueue();
 const taskCache = new Map();
 router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
@@ -31,6 +33,14 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 userId: userId
             }
         });
+        taskQueue.enqueue({
+            id: task.id,
+            priority: task.priority,
+            createdAt: task.createdAt,
+            title: task.title,
+            description: task.description
+        });
+        taskCache.clear();
         res.status(201).json({ message: 'Task created successfully', task });
     }
     catch (error) {
@@ -64,8 +74,22 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             skip: (Number(page) - 1) * Number(limit),
             take: Number(limit)
         });
-        taskCache.set(cacheKey, tasks);
-        res.json(tasks);
+        const tempQueue = new TaskQueue_1.TaskQueue();
+        tasks.forEach(task => {
+            tempQueue.enqueue({
+                id: task.id,
+                priority: task.priority,
+                createdAt: task.createdAt,
+                title: task.title,
+                description: task.description
+            });
+        });
+        const sortedTasks = tempQueue.getAll();
+        taskCache.set(cacheKey, sortedTasks);
+        setTimeout(() => {
+            taskCache.delete(cacheKey);
+        }, 5 * 60 * 1000);
+        res.json(sortedTasks);
     }
     catch (error) {
         console.error(error);
